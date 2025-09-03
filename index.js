@@ -1,16 +1,15 @@
 // index.js
-const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 const fs = require('fs');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
 client.commands = new Collection();
 
-// Load command files
+// Load commands dynamically from ./commands/tracker/
 const commandFiles = fs.readdirSync('./commands/tracker').filter(file => file.endsWith('.js'));
-
 const commands = [];
+
 for (const file of commandFiles) {
     const command = require(`./commands/tracker/${file}`);
     client.commands.set(command.data.name, command);
@@ -35,6 +34,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     }
 })();
 
+// Bot ready event
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
 });
