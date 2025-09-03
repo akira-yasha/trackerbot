@@ -1,31 +1,40 @@
-// commands/tracker/start.js
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('start')
-        .setDescription('Starts a donation tracker.')
+        .setDescription('Create a new donation tracker')
         .addStringOption(option =>
             option.setName('currency')
-                .setDescription('The currency symbol')
-                .setRequired(false))
+                .setDescription('Choose a currency symbol')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Dollar ($)', value: '$' },
+                    { name: 'Euro (€)', value: '€' },
+                    { name: 'Peso (₱)', value: '₱' },
+                    { name: 'Yen (¥)', value: '¥' },
+                    { name: 'Pound (£)', value: '£' }
+                )
+        )
         .addNumberOption(option =>
             option.setName('amount')
-                .setDescription('The amount to track')
-                .setRequired(false))
+                .setDescription('Set the goal amount')
+                .setRequired(true)
+        )
         .addStringOption(option =>
             option.setName('note')
-                .setDescription('Optional note')
-                .setRequired(false)),
-    
+                .setDescription('Optional note or description')
+                .setRequired(false)
+        ),
+
     async execute(interaction) {
-        const currency = interaction.options.getString('currency') || '';
-        const amount = interaction.options.getNumber('amount') || '';
-        const note = interaction.options.getString('note') || '';
+        const currency = interaction.options.getString('currency');
+        const amount = interaction.options.getNumber('amount');
+        const note = interaction.options.getString('note') || 'No note provided';
 
-        let response = `This would create a tracker for ${currency} ${amount}`;
-        if (note) response += ` - ${note}`;
-
-        await interaction.reply(response);
+        await interaction.reply(
+            `🛠 This would create a tracker for **${currency}${amount}**\n` +
+            `Note: ${note}`
+        );
     },
-}; // End of start command
+};
