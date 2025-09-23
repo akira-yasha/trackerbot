@@ -1,3 +1,14 @@
 {
-    "donations": []
+  "1407071193886101514": [
+    {
+      "name": "Translator Bot",
+      "goal": 50,
+      "current": 0,
+      "currency": "$",
+      "channelId": "1409163637117030410",
+      "messageId": "1414264764393062420",
+      "customMessage": "Donating via Ko-fi helps upgrade our <@&1408519821569556553> bot. It will auto-translate messages and create channels like #chitchat-eng and #chitchat-rus, so you won’t need to translate manually anymore.",
+      "donateUrl": "https://ko-fi.com/kirayasha"
+    }
+  ]
 }

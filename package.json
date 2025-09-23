@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "register": "node scripts/register-commands.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,5 +15,8 @@
   "dependencies": {
     "discord.js": "^14.22.1",
     "dotenv": "^17.2.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
