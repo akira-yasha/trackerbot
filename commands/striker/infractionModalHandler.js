@@ -1,12 +1,21 @@
+const fs = require('fs');
 const path = require('node:path');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { postOrRefreshLauncher } = require('./launcher.js');
 const { makePages, embedForPage, loadDB, saveChief, getChief } = require('./utils.js');
 
 const DATA_PATH = path.resolve('./data/strikerdata.json');
+const CONFIG_PATH = path.resolve('./data/strikerconfig.json');
 
-// Prefer these var names in Railway:
-// STRIKE_LOG_CHANNEL_ID or INFRACTION_LOG_CHANNEL_ID
+// --- helpers ---
+function loadConfig() {
+  if (!fs.existsSync(CONFIG_PATH)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  } catch {
+    return {};
+  }
+}
 
 function pagerRow(chiefKey, page, total) {
   const prev = new ButtonBuilder()
@@ -22,17 +31,6 @@ function pagerRow(chiefKey, page, total) {
     .setDisabled(page >= total - 1);
 
   return new ActionRowBuilder().addComponents(prev, next);
-}
-
-// Resolve the log channel id from env or guild config
-function resolveLogChannelId(interaction, guildSettings) {
-  return (
-    process.env.STRIKE_LOG_CHANNEL_ID ||            // recommended Railway var
-    process.env.INFRACTION_LOG_CHANNEL_ID ||        // fallback var name
-    guildSettings?.strikeLogChannelId ||            // per-guild config fields
-    guildSettings?.infractionLogChannelId ||        // alternate name
-    null
-  );
 }
 
 async function handleInfractionModal(interaction) {
@@ -58,36 +56,27 @@ async function handleInfractionModal(interaction) {
 
     saveChief(DATA_PATH, db, c);
 
-    // Try to pull a guild settings object if you keep one in memory
-    const guildSettings =
-      interaction.client?.guildConfigs?.get?.(interaction.guildId) ?? null;
+    // --- resolve log channel id: config first, then env fallbacks
+    const config = loadConfig();
+    const guildConfig = config[interaction.guildId] || {};
+    const logChannelId =
+      guildConfig.strikeLogChannelId ||
+      process.env.STRIKE_LOG_CHANNEL_ID ||
+      process.env.INFRACTION_LOG_CHANNEL_ID ||
+      null;
 
-    const logChannelId = resolveLogChannelId(interaction, guildSettings);
-
-    // Validate it's a Discord snowflake (17–20 digits)
     if (!logChannelId || !/^\d{17,20}$/.test(logChannelId)) {
-      console.error('[Striker] Missing/invalid log channel id:', logChannelId, {
-        env: {
-          STRIKE_LOG_CHANNEL_ID: !!process.env.STRIKE_LOG_CHANNEL_ID,
-          INFRACTION_LOG_CHANNEL_ID: !!process.env.INFRACTION_LOG_CHANNEL_ID,
-        }
-      });
-
-      await interaction.editReply([
-        '⚠️ Strike log channel isn’t configured.',
-        'Set a valid channel ID in Railway variables as `STRIKE_LOG_CHANNEL_ID`',
-        'or configure your guild settings for `strikeLogChannelId`.'
-      ].join('\n'));
+      await interaction.editReply('⚠️ Strike log channel is not configured. Use `/strikechannel` to set it.');
       return;
     }
 
-    // One declaration only — prefer cache, fallback to fetch
+    // one declaration only; prefer cache then fetch
     const logChannel =
       interaction.client.channels.cache.get(logChannelId) ??
       await interaction.client.channels.fetch(logChannelId);
 
     if (!logChannel || !logChannel.isTextBased()) {
-      await interaction.editReply('⚠️ The configured log channel can’t be found or isn’t a text channel.');
+      await interaction.editReply('⚠️ Configured strike log channel is invalid or not a text channel.');
       return;
     }
 
@@ -109,7 +98,8 @@ async function handleInfractionModal(interaction) {
     });
 
     try { await postOrRefreshLauncher(logChannel); } catch {}
-    // Clean up the ephemeral deferred reply
+
+    // clean up the ephemeral deferred reply
     try { await interaction.deleteReply(); }
     catch { try { await interaction.editReply({ content: '\u200b' }); } catch {} }
 
