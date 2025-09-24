@@ -25,14 +25,15 @@ const { loadDB, makePages, embedForPage } = require('./commands/striker/utils.js
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessages,   // required for messageCreate
+    GatewayIntentBits.MessageContent,  // not strictly needed, but OK
   ],
 });
+
 client.commands = new Collection();
 
 /* ---------------------------
- * Load slash commands
+ * Command loading
  * ------------------------- */
 const commandsRoot = path.join(__dirname, 'commands');
 const slashJSON = [];
@@ -105,6 +106,23 @@ function buildPagerRow(chiefKey, page, total) {
     .setDisabled(page >= total - 1);
 
   return new ActionRowBuilder().addComponents(prev, next);
+}
+
+// Config helpers (per-guild channel id)
+const CONFIG_PATH = path.resolve('./data/strikerconfig.json');
+function loadConfig() {
+  if (!fs.existsSync(CONFIG_PATH)) return {};
+  try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); }
+  catch { return {}; }
+}
+function getGuildLogChannelId(guildId) {
+  const cfg = loadConfig();
+  return (
+    cfg[guildId]?.strikeLogChannelId ||
+    process.env.STRIKE_LOG_CHANNEL_ID ||      // fallback ENV
+    process.env.INFRACTION_LOG_CHANNEL_ID ||  // fallback ENV (old name)
+    null
+  );
 }
 
 /* ---------------------------
@@ -198,40 +216,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 /* ---------------------------
- * Sticky refresher on new messages
+ * Sticky launcher refresher
+ * Triggers on ANY message in the configured log channel (bot or users),
+ * with per-channel debounce and guard against looping on the launcher.
  * ------------------------- */
-const LOG_CHANNEL_ID = process.env.STRIKER_LOG_CHANNEL;
 const stickyCooldown = new Map();
-const STICKY_COOLDOWN_MS = 2000;
+const STICKY_COOLDOWN_MS = 1500;
 
 client.on(Events.MessageCreate, async (message) => {
   try {
-    if (!LOG_CHANNEL_ID) return;
-    if (message.channelId !== LOG_CHANNEL_ID) return;
-    if (message.author?.id === client.user.id) return;
+    if (!message.guild) return;
 
-    // simple cooldown per-channel
+    const logChannelId = getGuildLogChannelId(message.guildId);
+    if (!logChannelId) return;
+    if (message.channelId !== logChannelId) return;
+
+    // Debounce per channel
     const now = Date.now();
     const last = stickyCooldown.get(message.channelId) || 0;
     if (now - last < STICKY_COOLDOWN_MS) return;
     stickyCooldown.set(message.channelId, now);
 
-    // don't loop on the launcher itself
+    // Prevent loop on the launcher message itself
     const DATA_PATH = path.resolve('./data/strikerdata.json');
-    const db = fs.existsSync(DATA_PATH)
-      ? JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'))
-      : { launchers: {} };
-
-    const currentLauncherId = db.launchers?.[message.channelId];
+    let currentLauncherId = null;
+    if (fs.existsSync(DATA_PATH)) {
+      try {
+        const db = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
+        currentLauncherId = db.launchers?.[message.channelId] || null;
+      } catch {}
+    }
     if (currentLauncherId && message.id === currentLauncherId) return;
 
+    // Refresh / post sticky
     try {
       await postOrRefreshLauncher(message.channel);
     } catch (e) {
-      console.error('Sticky refresh error:', e.message);
+      console.error('Sticky refresh error:', e?.message || e);
     }
   } catch (e) {
-    console.error('MessageCreate watcher error:', e.message);
+    console.error('MessageCreate watcher error:', e?.message || e);
   }
 });
 

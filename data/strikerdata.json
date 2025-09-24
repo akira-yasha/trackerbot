@@ -1,7 +1,40 @@
 {
   "chiefs": {
+    "orko": {
+      "name": "Orko",
+      "strikes": [
+        {
+          "ts": 1758715091093,
+          "reason": "Fragment Use",
+          "issuer": "155893894943473665"
+        }
+      ],
+      "warnings": []
+    },
+    "melanimell": {
+      "name": "melanimell",
+      "strikes": [
+        {
+          "ts": 1758715116467,
+          "reason": "Fragment Use",
+          "issuer": "155893894943473665"
+        }
+      ],
+      "warnings": []
+    },
+    "꧁༒striker༒꧂": {
+      "name": "꧁༒Striker༒꧂",
+      "strikes": [
+        {
+          "ts": 1758715236258,
+          "reason": "Fragment Use",
+          "issuer": "155893894943473665"
+        }
+      ],
+      "warnings": []
+    }
   },
   "launchers": {
-    "1419433955056422962": "1420122942817308743"
+    "1419433955056422962": "1420379396476506173"
   }
 }
